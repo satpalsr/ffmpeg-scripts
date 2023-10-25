@@ -17,13 +17,13 @@ usage () {
 [ -z "${1}" ] || echo "! ${1}"
 # display help
 echo "\
-$(basename "$0") -i input -c cutfile
+$(basename "$0") -i input -c cutfile -o output_directory
 
 -i input.(mp4|mov|mkv|m4v)
--c cutfile"
+-c cutfile
+-o output_directory"
 exit 2
 }
-
 
 #===============================================================================
 # error messages
@@ -39,16 +39,16 @@ WRONG_ARGS_ERR='wrong number of arguments passed to script'
 
 [ $# -gt 0 ] || usage "${WRONG_ARGS_ERR}"
 
-
 #===============================================================================
 # getopts check the options passed to the script
 #===============================================================================
 
-while getopts ':i:c:h' opt
+while getopts ':i:c:o:h' opt
 do
   case ${opt} in
      i) input="${OPTARG}";;
      c) cutfile="${OPTARG}";;
+     o) output_dir="${OPTARG}";;
      h) usage;;
      \?) usage "${INVALID_OPT_ERR} ${OPTARG}" 1>&2;;
      :) usage "${INVALID_OPT_ERR} ${OPTARG} ${REQ_ARG_ERR}" 1>&2;;
@@ -56,6 +56,8 @@ do
 done
 shift $((OPTIND-1))
 
+# Validate output directory
+[ -d "${output_dir}" ] || { echo "Output directory ${output_dir} does not exist!"; exit 1; }
 
 #===============================================================================
 # variables
@@ -70,8 +72,6 @@ input_name="${input_nopath%.*}"
 #===============================================================================
 
 trim_video () {
-# awk convert start and end time from sexagesimal time to seconds
-# add the start and end time to get the endpoint and convert from seconds back to sexagesimal time
     endtime=$(printf "%s %s\n" "${start}" "${duration}" \
     | awk '
             {
@@ -91,7 +91,7 @@ trim_video () {
     | awk -F. 'NF==1 { printf("%02d:%02d:%02d\n"), ($1 / 3600), ($1 % 3600 / 60), ($1 % 60) }\
     NF==2 { printf("%02d:%02d:%02d.%s\n"), ($1 / 3600), ($1 % 3600 / 60), ($1 % 60), ($2) }'
     )
-    output="${input_name}-[${start}-${endtime}].mp4" 
+    output="${output_dir}/${input_name}-[${start}-${endtime}].mp4" 
     ffmpeg \
     -nostdin \
     -hide_banner \
@@ -105,7 +105,6 @@ trim_video () {
     -f mp4 \
     "${output}"
 }
-
 
 #===============================================================================
 # read file and set IFS=, read = input before , duration = input after ,
